@@ -153,10 +153,24 @@ button.back:hover{color:#888}
 // ════════════════════════════════════════
 //  CONFIGURACIÓN ← pega tu URL aquí
 // ════════════════════════════════════════
-const SCRIPT_URL = 'https://script.google.com/macros/library/d/1PPBQS4OhEnYilDdL7bAmT9AA5fJ8DFgyDKGe5EvLc6qaRZSp6skZqyGw/2';
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwPrtpRM82C8PEofR8Bt8_PT571ieK-cYcRvsaLyR7QZwHkcAC8bYjcDpnH70PvorE4/exec';
 // ════════════════════════════════════════
 
 let usuarioActual = null;
+
+// ── JSONP helper (evita bloqueo CORS con Apps Script) ──
+function fetchJSONP(url) {
+  return new Promise((resolve, reject) => {
+    const cb = 'cb_' + Date.now();
+    const s  = document.createElement('script');
+    const t  = setTimeout(() => { cleanup(); reject(new Error('Timeout')); }, 12000);
+    window[cb] = data => { cleanup(); resolve(data); };
+    function cleanup() { clearTimeout(t); delete window[cb]; s.remove(); }
+    s.onerror = () => { cleanup(); reject(new Error('Error de red')); };
+    s.src = url + '&callback=' + cb;
+    document.head.appendChild(s);
+  });
+}
 
 // ── Secciones ─────────────────────────
 function show(id) {
@@ -193,8 +207,7 @@ document.getElementById('btn-buscar').addEventListener('click', async () => {
 
   try {
     const url = `${SCRIPT_URL}?action=match&nombre=${encodeURIComponent(nm)}&grado=${encodeURIComponent(gr.toUpperCase())}`;
-    const resp = await fetch(url, { redirect: 'follow' });
-    const data = await resp.json();
+    const data = await fetchJSONP(url);
 
     if (!data.ok) { show('sec-login'); toast('⚠ ' + data.error); return; }
 
@@ -255,8 +268,7 @@ document.getElementById('btn-random').addEventListener('click', async () => {
 
   try {
     const url = `${SCRIPT_URL}?action=random&nombre=${encodeURIComponent(usuarioActual.nombre)}&grado=${encodeURIComponent(usuarioActual.grado)}`;
-    const resp = await fetch(url, { redirect: 'follow' });
-    const data = await resp.json();
+    const data = await fetchJSONP(url);
     mostrarRandom(data);
   } catch(e) {
     toast('⚠ Error de conexión.');
